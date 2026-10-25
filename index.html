@@ -93,28 +93,27 @@
       <div class="p-6">
         <p class="text-center text-xs text-zinc-400 mb-3 font-semibold">SCAN QRIS DI BAWAH INI</p>
         
-        <!-- Container Putih (Dikunci tingginya biar kotak) -->
-<div class="bg-white p-3 rounded-xl flex justify-center w-full max-w-[220px] h-[220px] mx-auto overflow-hidden">
-  <!-- ⬇️ Ganti Link Catbox Lu Di Sini ⬇️ -->
-  <img 
-    src="https://files.catbox.moe/ynn62e.jpg" 
-    alt="QRIS RIOOMD" 
-    style="width: 100%; height: 100%; object-fit: cover; object-position: center 35%; border-radius: 4px;"
-    onerror="this.onerror=null; this.src='https://via.placeholder.com/200x200?text=QR+Error';"
-  >
-</div>
+        <div class="bg-white p-3 rounded-xl flex justify-center w-full max-w-[220px] h-[220px] mx-auto overflow-hidden">
+          <img 
+            src="https://files.catbox.moe/ynn62e.jpg" 
+            alt="QRIS RIOOMD" 
+            style="width: 100%; height: 100%; object-fit: cover; object-position: center 35%; border-radius: 4px;"
+            onerror="this.onerror=null; this.src='https://via.placeholder.com/200x200?text=QR+Error';"
+          >
+        </div>
+        
+        <p class="text-center text-[10px] text-zinc-500 mt-2 font-mono">a.n RIOOMD OFFICIAL</p>
+      </div>
 
       <!-- KONTAK ADMIN -->
       <div class="p-6 pt-0">
         <p class="text-xs text-zinc-400 mb-3 text-center">Sudah bayar? Konfirmasi bukti transfer ke Admin:</p>
         
         <div class="grid grid-cols-2 gap-3">
-          <!-- Tombol WhatsApp -->
           <a id="btn-wa" href="#" target="_blank" class="flex items-center justify-center gap-2 bg-green-600/10 border border-green-600/30 text-green-500 hover:bg-green-600/20 font-bold py-3 rounded-lg text-sm transition">
             WhatsApp
           </a>
           
-          <!-- Tombol Telegram -->
           <a id="btn-tg" href="#" target="_blank" class="flex items-center justify-center gap-2 bg-blue-600/10 border border-blue-600/30 text-blue-400 hover:bg-blue-600/20 font-bold py-3 rounded-lg text-sm transition">
             Telegram
           </a>
@@ -130,10 +129,10 @@
 
   <script>
     // ==========================================
-    // KONFIGURASI ADMIN (GANTI DI SINI)
+    // KONFIGURASI ADMIN
     // ==========================================
-    const ADMIN_WA = '6287742894263'; // Ganti pakai nomor WA lu (awali 62)
-    const ADMIN_TG = 'rio_mddd';  // Ganti pakai username Telegram lu (tanpa @)
+    const ADMIN_WA = '6287742894263';
+    const ADMIN_TG = 'rio_mddd';
 
     // ==========================================
     // DATA PRODUK
@@ -246,11 +245,9 @@
       document.getElementById('receipt-time').innerText = time;
       document.getElementById('receipt-total').innerText = `Rp ${total.toLocaleString('id-ID')}`;
       
-      // Pesan Otomatis untuk Admin
       const itemsText = cart.map(c => `${c.name} (${c.qty}x)`).join(', ');
       const message = encodeURIComponent(`Halo Admin RIOOMD,\n\nSaya mau konfirmasi pesanan:\nOrder ID: ${orderId}\nItems: ${itemsText}\nTotal: Rp ${total.toLocaleString('id-ID')}\n\nBerikut bukti transfernya:`);
       
-      // Set Link Tombol WA & TG
       document.getElementById('btn-wa').href = `https://wa.me/${ADMIN_WA}?text=${message}`;
       document.getElementById('btn-tg').href = `https://t.me/${ADMIN_TG}?text=${message}`;
       
@@ -269,80 +266,4 @@
     updateCart();
   </script>
 </body>
-    </html>den');
-      renderCartItems();
-    }
-
-    function renderCartItems() {
-      const container = document.getElementById('cart-items');
-      const totalEl = document.getElementById('cart-total');
-      if (cart.length === 0) {
-        container.innerHTML = '<p class="text-center text-zinc-500 py-10 text-sm">Keranjang masih kosong.</p>';
-        totalEl.innerText = 'Rp 0';
-        return;
-      }
-      let total = 0;
-      container.innerHTML = cart.map(item => {
-        total += item.price * item.qty;
-        return `
-          <div class="flex justify-between items-center py-3 border-b border-zinc-800 last:border-0">
-            <div>
-              <div class="font-bold text-sm">${item.name}</div>
-              <div class="text-xs text-zinc-500 font-mono">${item.qty} x Rp ${item.price.toLocaleString('id-ID')}</div>
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="font-mono font-bold text-sm">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</span>
-              <button onclick="removeFromCart('${item.id}')" class="text-zinc-500 hover:text-red-500 text-xl font-bold">&times;</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-      totalEl.innerText = `Rp ${total.toLocaleString('id-ID')}`;
-    }
-
-    function removeFromCart(id) {
-      cart = cart.filter(c => c.id !== id);
-      updateCart();
-    }
-
-    // ==========================================
-    // MODAL & CHECKOUT
-    // ==========================================
-    function openCart() { document.getElementById('cart-modal').classList.remove('hidden'); }
-    function closeCart() { document.getElementById('cart-modal').classList.add('hidden'); }
-
-    function checkout() {
-      if (cart.length === 0) return alert('Keranjang kosong!');
-      
-      const orderId = 'RIOOMD-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-      const time = new Date().toLocaleString('id-ID');
-      const total = cart.reduce((a, b) => a + (b.price * b.qty), 0);
-      
-      document.getElementById('receipt-id').innerText = orderId;
-      document.getElementById('receipt-time').innerText = time;
-      document.getElementById('receipt-total').innerText = `Rp ${total.toLocaleString('id-ID')}`;
-      
-      // Pesan Otomatis untuk Admin
-      const itemsText = cart.map(c => `${c.name} (${c.qty}x)`).join(', ');
-      const message = encodeURIComponent(`Halo Admin RIOOMD,\n\nSaya mau konfirmasi pesanan:\nOrder ID: ${orderId}\nItems: ${itemsText}\nTotal: Rp ${total.toLocaleString('id-ID')}\n\nBerikut bukti transfernya:`);
-      
-      // Set Link Tombol WA & TG
-      document.getElementById('btn-wa').href = `https://wa.me/${ADMIN_WA}?text=${message}`;
-      document.getElementById('btn-tg').href = `https://t.me/${ADMIN_TG}?text=${message}`;
-      
-      closeCart();
-      document.getElementById('receipt-modal').classList.remove('hidden');
-    }
-
-    function closeReceipt() {
-      document.getElementById('receipt-modal').classList.add('hidden');
-      cart = [];
-      updateCart();
-    }
-
-    // INIT
-    renderProducts();
-    updateCart();
-  </script>
-</body>
-</html>
+  </html>
