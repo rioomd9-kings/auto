@@ -50,7 +50,7 @@
     <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
       <div class="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-950">
         <h2 class="font-bold text-lg">Checkout Pesanan</h2>
-        <button onclick="closeCart()" class="text-zinc-500 hover:text-white">&times;</button>
+        <button onclick="closeCart()" class="text-zinc-500 hover:text-white text-xl">&times;</button>
       </div>
       
       <div class="p-5 overflow-y-auto flex-1" id="cart-items"></div>
@@ -67,7 +67,7 @@
     </div>
   </div>
 
-  <!-- MODAL PEMBAYARAN & STRUK (UPDATED) -->
+  <!-- MODAL PEMBAYARAN & STRUK -->
   <div id="receipt-modal" class="fixed inset-0 bg-black/95 z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md my-8">
       
@@ -92,10 +92,18 @@
       <!-- QRIS SECTION -->
       <div class="p-6">
         <p class="text-center text-xs text-zinc-400 mb-3 font-semibold">SCAN QRIS DI BAWAH INI</p>
-        <div class="bg-white p-4 rounded-xl flex justify-center">
-          <!-- ⬇️ GANTI LINK DI BAWAH PAKAI LINK CATBOX LU ⬇️ -->
-          <img src="https://files.catbox.moe/ynn62e.jpg" alt="QRIS RIOOMD" class="w-full max-w-[200px] object-contain">
+        
+        <!-- Container Putih -->
+        <div class="bg-white p-3 rounded-xl flex justify-center w-full max-w-[220px] mx-auto overflow-hidden">
+          <!-- ⬇️ GANTI LINK CATBOX DI SINI (PASTIKAN AKHIRAN .JPG / .PNG) ⬇️ -->
+          <img 
+            src="https://files.catbox.moe/ynn62e.jpg" 
+            alt="QRIS RIOOMD" 
+            style="width: 100%; height: auto; display: block; object-fit: contain; border-radius: 4px;"
+            onerror="this.onerror=null; this.src='https://via.placeholder.com/200x200?text=QR+Error';"
+          >
         </div>
+        
         <p class="text-center text-[10px] text-zinc-500 mt-2 font-mono">a.n RIOOMD OFFICIAL</p>
       </div>
 
@@ -128,7 +136,7 @@
     // KONFIGURASI ADMIN (GANTI DI SINI)
     // ==========================================
     const ADMIN_WA = '6287742894263'; // Ganti pakai nomor WA lu (awali 62)
-    const ADMIN_TG = '@rio_mddd';  // Ganti pakai username Telegram lu (tanpa @)
+    const ADMIN_TG = 'rio_mddd';  // Ganti pakai username Telegram lu (tanpa @)
 
     // ==========================================
     // DATA PRODUK
@@ -175,8 +183,13 @@
       else cart.push({ ...product, qty: 1 });
       
       updateCart();
-      event.target.innerText = "Ditambahkan!";
-      setTimeout(() => event.target.innerText = "+ Tambah", 1000);
+      const btn = event.target;
+      btn.innerText = "Ditambahkan!";
+      btn.classList.add("bg-green-500", "text-white");
+      setTimeout(() => {
+        btn.innerText = "+ Tambah";
+        btn.classList.remove("bg-green-500", "text-white");
+      }, 1000);
     }
 
     function updateCart() {
@@ -184,6 +197,82 @@
       const countEl = document.getElementById('cart-count');
       if (count > 0) { countEl.innerText = count; countEl.classList.remove('hidden'); }
       else countEl.classList.add('hidden');
+      renderCartItems();
+    }
+
+    function renderCartItems() {
+      const container = document.getElementById('cart-items');
+      const totalEl = document.getElementById('cart-total');
+      if (cart.length === 0) {
+        container.innerHTML = '<p class="text-center text-zinc-500 py-10 text-sm">Keranjang masih kosong.</p>';
+        totalEl.innerText = 'Rp 0';
+        return;
+      }
+      let total = 0;
+      container.innerHTML = cart.map(item => {
+        total += item.price * item.qty;
+        return `
+          <div class="flex justify-between items-center py-3 border-b border-zinc-800 last:border-0">
+            <div>
+              <div class="font-bold text-sm">${item.name}</div>
+              <div class="text-xs text-zinc-500 font-mono">${item.qty} x Rp ${item.price.toLocaleString('id-ID')}</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="font-mono font-bold text-sm">Rp ${(item.price * item.qty).toLocaleString('id-ID')}</span>
+              <button onclick="removeFromCart('${item.id}')" class="text-zinc-500 hover:text-red-500 text-xl font-bold">&times;</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      totalEl.innerText = `Rp ${total.toLocaleString('id-ID')}`;
+    }
+
+    function removeFromCart(id) {
+      cart = cart.filter(c => c.id !== id);
+      updateCart();
+    }
+
+    // ==========================================
+    // MODAL & CHECKOUT
+    // ==========================================
+    function openCart() { document.getElementById('cart-modal').classList.remove('hidden'); }
+    function closeCart() { document.getElementById('cart-modal').classList.add('hidden'); }
+
+    function checkout() {
+      if (cart.length === 0) return alert('Keranjang kosong!');
+      
+      const orderId = 'RIOOMD-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      const time = new Date().toLocaleString('id-ID');
+      const total = cart.reduce((a, b) => a + (b.price * b.qty), 0);
+      
+      document.getElementById('receipt-id').innerText = orderId;
+      document.getElementById('receipt-time').innerText = time;
+      document.getElementById('receipt-total').innerText = `Rp ${total.toLocaleString('id-ID')}`;
+      
+      // Pesan Otomatis untuk Admin
+      const itemsText = cart.map(c => `${c.name} (${c.qty}x)`).join(', ');
+      const message = encodeURIComponent(`Halo Admin RIOOMD,\n\nSaya mau konfirmasi pesanan:\nOrder ID: ${orderId}\nItems: ${itemsText}\nTotal: Rp ${total.toLocaleString('id-ID')}\n\nBerikut bukti transfernya:`);
+      
+      // Set Link Tombol WA & TG
+      document.getElementById('btn-wa').href = `https://wa.me/${ADMIN_WA}?text=${message}`;
+      document.getElementById('btn-tg').href = `https://t.me/${ADMIN_TG}?text=${message}`;
+      
+      closeCart();
+      document.getElementById('receipt-modal').classList.remove('hidden');
+    }
+
+    function closeReceipt() {
+      document.getElementById('receipt-modal').classList.add('hidden');
+      cart = [];
+      updateCart();
+    }
+
+    // INIT
+    renderProducts();
+    updateCart();
+  </script>
+</body>
+    </html>den');
       renderCartItems();
     }
 
