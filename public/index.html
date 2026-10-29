@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RIOOMD Builder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-300 min-h-screen flex items-center justify-center p-6 font-sans">
+
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-8 w-full max-w-md shadow-2xl">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-8 h-8 bg-white text-black font-black flex items-center justify-center rounded">R</div>
+      <h1 class="text-xl font-bold text-white">RIOOMD BUILDER</h1>
+    </div>
+
+    <label class="block text-xs font-semibold text-zinc-400 mb-2">Secret Token</label>
+    <input type="password" id="tokenInput" class="w-full p-3 bg-zinc-950 border border-zinc-700 rounded-lg mb-4 text-white focus:outline-none focus:border-zinc-500" placeholder="Masukkan token RIOOMD...">
+
+    <label class="block text-xs font-semibold text-zinc-400 mb-2">Target Web URL</label>
+    <input type="text" id="targetUrl" class="w-full p-3 bg-zinc-950 border border-zinc-700 rounded-lg mb-6 text-white focus:outline-none focus:border-zinc-500" placeholder="https://accounts.google.com">
+
+    <button onclick="buildLink()" class="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-zinc-200 transition">Generate Link</button>
+
+    <div id="result" class="mt-6 hidden bg-zinc-950 border border-zinc-700 p-4 rounded-lg">
+      <p class="text-xs text-zinc-400 mb-2">Generated URL:</p>
+      <div class="flex items-center gap-2">
+        <input type="text" id="resultLink" readonly class="w-full bg-transparent text-blue-400 text-sm outline-none">
+        <button onclick="copyLink()" class="text-xs bg-zinc-800 px-3 py-1 rounded text-white hover:bg-zinc-700">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function buildLink() {
+      const targetUrl = document.getElementById('targetUrl').value;
+      const token = document.getElementById('tokenInput').value;
+
+      if (!token) return alert('Token wajib diisi!');
+      if (!targetUrl) return alert('URL tidak boleh kosong!');
+
+      const btn = event.target;
+      btn.innerText = 'Processing...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/build', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetUrl, token })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById('result').classList.remove('hidden');
+          document.getElementById('resultLink').value = data.link;
+        } else {
+          alert(data.error);
+        }
+      } catch (e) {
+        alert('RIOOMD: Gagal konek ke server.');
+      } finally {
+        btn.innerText = 'Generate Link';
+        btn.disabled = false;
+      }
+    }
+
+    function copyLink() {
+      const link = document.getElementById('resultLink');
+      link.select();
+      document.execCommand('copy');
+      alert('Link RIOOMD berhasil dicopy!');
+    }
+  </script>
+</body>
+  </html>
